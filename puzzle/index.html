@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+<html>
+<head>
+	<title>STI Puzzle</title>
+	<script type="text/javascript" src="cocos2d-html5.js" charset="UTF-8"></script>
+	<link href='https://fonts.googleapis.com/css?family=Roboto+Condensed' rel='stylesheet' type='text/css'>
+<style>
+@font-face {
+	font-family: 'Roboto Condensed';
+	font-style: normal;
+	font-weight: 400;
+	src: local('Roboto Condensed'), url('RobotoCondensed.ttf') format('truetype');
+}
+</style>
+</head>
+<body bgcolor="black">
+	<canvas id="gameCanvas" width="960" height="600"></canvas>
+	<script type="text/javascript">
+		window.onload = function() {
+			cc.game.onStart = function() {
+				cc.LoaderScene.preload(["RobotoCondensed.ttf", "chart.png"], function () {
+					var indices = [0,1,1,1,2,2,2,3, 4,5,6,7,8,9,10,11, 12,12,13,13,14,14,14,15, 16,16,17,17,18,18,19,20, 21,21,22,23,23,24,25,25];
+					var strings = [
+							"Membrane to fluid? Contact between your vagina, penis, anus, or mouth and your partner's vaginal fluid, cum, pre-cum, or anal fluid. This can happen through oral, vaginal, and anal sex.",
+							"Membrane to fluid? Contact between your vagina, penis, or anus, and your partner's vaginal fluid, cum, pre-cum, or anal fluid. This can happen through vaginal and anal sex. These infections are rarely transmitted through oral sex.",
+							"Skin to skin contact between your mouth, vagina, penis, anus, or groin area and your partner's vagina, penis, anus, or groin area. This can happen through oral, vaginal, and anal sex.",
+							"Skin to skin contact between your vagina, penis, anus, or groin area and your partner's vagina, penis, anus, or groin area. This can happen through vaginal sex, and anal sex.",
+							"Gonorrhea",
+							"Trichomoniasis\n\nChlamydia",
+							"Hepatitis B",
+							"HIV",
+							"Herpes",
+							"HPV",
+							"Syphilis",
+							"Pubic lice",
+							"Most people who are infected don't have any symptoms. When symptoms do happen, they include: itching, pain when you pee and milky, yellow, or green discharge from the penis, vagina, or anus.",
+							"Flu-like symptoms such as: fever, feeling tired all the time, feeling sick to your stomach, and throwing up.",
+							"Many people who are infected don't have noticeable symptoms. When symptoms are noticeable they include: unusual bumps, blisters, or sores on or near your genitals.",
+							"Itching and redness.",
+							"A health worker will ask you to pee in a cup. If you have unusual discharge, they may take a swab.",
+							"A health worker will use a needle to take blood from your arm",
+							"A health worker will look at the infected area. If you have unusual warts or sores they may take a swab.",
+							"A health worker will use a needle to take blood from your arm.",
+							"A health worker will look at the infected area.",
+							"Medication cures the infection completely.",
+							"Your body can usually fight off the infection by itself. If not, medication can help you manage the infection and live a healthy life.",
+							"No cure - this infection stays with you for life. Medications can help you manage the infection and live a healthy life.",
+							"Your body can usually fight off the infection by itself. If not, warts or precancerous cells can be treated.",
+							"Medication cures the infection completely.",];
+					var infoBox = null;
+					var infoText = null;
+					var showInfo = function(pos) {
+						var flag = false;
+						if (pos.x < 530)	infoBox.setPosition(cc.p(154 + 380, 600-56));
+						else							infoBox.setPosition(cc.p(154, 600-56));
+						for (var i = 0; i < 5; i++) {
+							for (var j = 0; j < 8; j++) {
+								var x = 98 + (98-2) * j + 46;
+								var y = 600 - (60 * i) - 46 - 46;
+								var rect = cc.rect(x, y, 98-1, 64);
+								if (cc.rectContainsPoint(rect, pos)) {
+									infoText.setString(strings[indices[i*8 + j]]);
+									flag = true;
+								}
+							}
+						}
+						infoBox.setVisible(flag);
+					};
+					var hideInfo = function() { infoBox.setVisible(false); }
+					var Piece = cc.Sprite.extend({
+						done: false,
+						touchDelta: null,
+						destination: null,
+						ctor: function(file, rect) {
+							this._super();
+							this.initWithFile(file, rect);
+							this.init();
+						},
+						getDestination() { return this.destination; },
+						setDestination(dest) {
+							this.destination = dest;
+						},
+						init() {
+							var self = this;
+							//self._super();
+							self.touchDelta = cc.p(0,0);
+							var listener = cc.EventListener.create({
+								event: cc.EventListener.TOUCH_ONE_BY_ONE,
+								swallowTouches: true,
+								onTouchBegan: function (touch, event) {
+									self.touchDelta = cc.p(0,0);
+									var target = event.getCurrentTarget();
+									var locationInNode = target.convertToNodeSpace(touch.getLocation());
+									var rect = cc.rect(0, 0, 98+98-2, 64);
+									if (cc.rectContainsPoint(rect, locationInNode)) {
+										if (target.done == true) { showInfo(touch.getLocation()); return true; }
+										hideInfo();
+										target.setLocalZOrder(10);
+										return true;
+									}
+									return false;
+								},
+								onTouchMoved: function (touch, event) {
+									var target = event.getCurrentTarget();
+									if (target.done == true) return false;
+									var delta = touch.getDelta();
+									target.x += delta.x;
+									target.y += delta.y;
+									self.touchDelta.x += delta.x;
+									self.touchDelta.y += delta.y;
+								},
+								onTouchEnded: function (touch, event) {
+									var target = event.getCurrentTarget();
+									if (target.done == true) return false;
+									if (cc.pDistance(target.getPosition(), target.getDestination()) < 20.0) {
+										target.runAction(cc.MoveTo.create(0.1, target.getDestination()));
+										target.done = true;
+									}
+									else if (target.y > 300 - 46) {
+										target.runAction(cc.MoveBy.create(0.1, cc.p(-target.touchDelta.x, -target.touchDelta.y)));
+									}
+								}
+							});
+							cc.eventManager.addListener(listener, self);
+						},
+					});
+					var MyScene = cc.Scene.extend({
+						onEnter:function () {
+							var self = this;
+							self._super();
+							var size = cc.director.getWinSize();
+
+							var layer = new cc.LayerColor(cc.color(192, 192, 192, 255));
+							self.addChild(layer);
+
+							var listener = cc.EventListener.create({
+								event: cc.EventListener.TOUCH_ONE_BY_ONE, swallowTouches: true,
+								onTouchBegan: function (touch, event) { hideInfo(); return true; }
+							});
+							cc.eventManager.addListener(listener, layer);
+
+							layer = new cc.LayerColor(cc.color(128, 128, 128, 255), 868, 304);
+							self.addChild(layer);
+							layer.setPosition(cc.p(46, 600-46));
+							layer.setAnchorPoint(cc.p(0,1));
+							layer.ignoreAnchorPointForPosition(false);
+
+							var sprite1 = cc.Sprite.create("chart.png", cc.rect(0,0,100,304));
+							self.addChild(sprite1);
+							sprite1.setPosition(cc.p(46, 600-46));
+							sprite1.setAnchorPoint(cc.p(0,1));
+							for (var i = 0; i < 5; i++) {
+								for (var j = 0; j < 4; j++) {
+									sprite1 = new Piece("chart.png", cc.rect(97 + (j * (98+98-4)), (i * 60), 98+98-2, 64));
+									self.addChild(sprite1);
+									sprite1.setDestination(cc.p(98 + (98+98-4) * j + 46, 600 - (60 * i) - 46));
+									sprite1.setPosition(cc.p(46 + Math.floor(Math.random() * (868-98-98+4)), 300-56 - Math.floor(Math.random() * (300-66-64))));
+									sprite1.setAnchorPoint(cc.p(0,1));
+									//sprite1.setPosition(cc.p(98 + (98+98-4) * j + 46, 600 - (60 * i) - 46));
+									//sprite1.done = true;
+								}
+							}
+
+							infoBox = new cc.LayerColor(cc.color(0, 0, 0, 160), 370, 220);
+							self.addChild(infoBox);
+							infoBox.setPosition(cc.p(154, 600-56));
+							infoBox.setAnchorPoint(cc.p(0,1));
+							infoBox.ignoreAnchorPointForPosition(false);
+							infoBox.setZOrder(100);
+							infoText = cc.LabelTTF.create(" ", "Roboto Condensed", 20, cc.size(350,200));
+							infoBox.addChild(infoText);
+							infoText.setHorizontalAlignment(cc.TEXT_ALIGNMENT_LEFT);
+							infoText.setColor(cc.color(255, 255, 255, 255));
+							infoText.setAnchorPoint(cc.p(0,1));
+							infoText.setPosition(cc.p(10,210));
+							hideInfo();
+						}
+					});
+					cc.director.runScene(new MyScene());
+				}, this);
+			};
+			cc.game.run("gameCanvas");
+		};
+	</script>
+</body>
+</html>
